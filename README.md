@@ -61,8 +61,9 @@ urlpatterns = [
 ]
 ```
 
-Run this package's migration (`oscar_redsys.RedsysNotification`, the
-notification audit/idempotency log) as part of the host project's own
+Run this package's migrations (`oscar_redsys.RedsysNotification`, the
+notification audit/idempotency log, and `oscar_redsys.RedsysOperation`,
+the refund/cancellation audit log) as part of the host project's own
 `migrate`.
 
 ## Building the redirect
@@ -81,6 +82,12 @@ class CheckoutPaymentView(PaymentRedirectView):
     def get_amount(self) -> Decimal:
         return self.request.basket.total_incl_tax
 ```
+
+This renders an auto-submitting form pointed at Redsys's payment page.
+`get_order_number()` must return Redsys's own format: at most 12
+characters, the first 4 numeric, the rest (if any) plain ASCII
+digits/letters — validated up front (`ValueError` if not), rather than
+letting a malformed order fail opaquely at Redsys's end.
 
 ## EMV3DS / SCA (optional, but improves checkout friction)
 
@@ -115,7 +122,22 @@ class CheckoutPaymentView(PaymentRedirectView):
 own PSD2/SCA documentation (`LWV`, `TRA`, `MIT`) — pass any other code
 Redsys documents as a plain string, it isn't restricted to these.
 
-This renders an auto-submitting form pointed at Redsys's payment page.
+## Consumer language (cosmetic)
+
+`get_consumer_language()` sets what language *Redsys's own hosted pages*
+(the payment form, the "Recibo Redsys" confirmation screen) render in —
+it has no effect on the payment itself:
+
+```python
+from oscar_redsys.language import ConsumerLanguage
+
+
+class CheckoutPaymentView(PaymentRedirectView):
+    ...
+
+    def get_consumer_language(self) -> str | None:
+        return ConsumerLanguage.SPANISH if self.request.LANGUAGE_CODE == "es" else ConsumerLanguage.ENGLISH
+```
 
 ## Handling the outcome
 
@@ -139,16 +161,49 @@ Both signals fire **at most once** per order number — a resent Redsys
 notification (Redsys explicitly documents that it can resend) is a no-op
 the second time, per `RedsysNotification`'s uniqueness on `order_number`.
 
+## Refunds and cancellations — staff/admin only, never storefront
+
+Unlike a payment, a refund or cancellation has no browser redirect at
+all: it's a direct server-to-server call (`oscar_redsys.rest`, Redsys's
+separate REST channel) referencing the original order, with no customer
+involved. This package deliberately exposes it **only** as two Django
+admin actions on `RedsysNotification` — "Refund selected payments" and
+"Cancel selected payments" — never as a storefront view or URL a shopper
+could reach.
+
+Both actions are gated by the `oscar_redsys.can_refund_or_cancel`
+permission on top of Django admin's own `is_staff` requirement — a
+plain staff user can view payment records but can't trigger either
+action without that permission explicitly granted (grant it via Django's
+own admin, `Permission` model, or a group). Every attempt, successful or
+not, is logged to `RedsysOperation` (who triggered it, when, the amount,
+the outcome) — nothing here fires silently.
+
+Refunds default to the full originally-authorized amount (recovered from
+the stored notification's own `Ds_Amount`/`Ds_Currency`); there's no
+partial-refund UI yet — see `oscar_redsys.rest.build_refund_request` if
+you need a different amount from your own code.
+
 ## Signature algorithm
 
-`HMAC_SHA512_V2`, per Redsys's "TPV-Virtual Manual de Integración -
-Redirección" (v4.1, 24/09/2025): an AES-128-CBC-derived per-operation
-key (merchant secret key, forced to 16 bytes; diversified by the order
-number; zero IV), then HMAC-SHA512 of the base64url-encoded
-`Ds_MerchantParameters` string, base64url-encoded with padding stripped.
-See `oscar_redsys/signature.py`'s module docstring and
-`tests/test_signature.py` (verified against Redsys's own published
-worked example).
+Two versions, both verified byte-exact against Redsys's own published
+worked examples in `tests/test_signature.py` — see
+`oscar_redsys/signature.py`'s module docstring for the full detail:
+
+- **V2** (`HMAC_SHA512_V2`) for the redirection/browser flow, per
+  "TPV-Virtual Manual de Integración - Redirección" (v4.1, 24/09/2025).
+- **V1** (`HMAC_SHA512_V1`) for the server-to-server REST channel
+  (confirm/refund/cancel), per "TPV-Virtual Manual Integración-REST"
+  (v4.0.1.1, 17/10/2025).
+
+Both derive a per-operation key via AES-128-CBC (merchant secret key
+forced to 16 bytes, zero IV, diversified by the order number, then
+**base64-encoded** — that base64 string's ASCII bytes are the actual
+HMAC key, not the raw ciphertext, a detail easy to get wrong silently
+since a self-consistent sign/verify round trip "works" either way and
+only breaks against Redsys itself). They differ only in the final
+encoding: V2 uses URL-safe base64 with padding stripped, V1 uses
+standard base64 with padding kept.
 
 ## Development
 

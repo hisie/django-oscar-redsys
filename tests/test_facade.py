@@ -6,7 +6,7 @@ import pytest
 
 from oscar_redsys.conf import RedsysSettings
 from oscar_redsys.emv3ds import Emv3dsData, MobilePhone, ScaExemption
-from oscar_redsys.facade import RedsysFacade, amount_to_minor_units
+from oscar_redsys.facade import RedsysFacade, amount_to_minor_units, minor_units_to_amount
 from oscar_redsys.params import decode_merchant_parameters
 from oscar_redsys.signature import signatures_match
 
@@ -31,6 +31,21 @@ def test_amount_to_minor_units_eur() -> None:
 def test_amount_to_minor_units_unknown_currency_raises() -> None:
     with pytest.raises(ValueError):
         amount_to_minor_units(Decimal("9.99"), "840")  # USD, not in our known-exponent table
+
+
+def test_minor_units_to_amount_eur() -> None:
+    assert minor_units_to_amount("999", "978") == Decimal("9.99")
+    assert minor_units_to_amount("1", "978") == Decimal("0.01")
+
+
+def test_minor_units_to_amount_is_the_inverse_of_amount_to_minor_units() -> None:
+    amount = Decimal("42.37")
+    assert minor_units_to_amount(amount_to_minor_units(amount, "978"), "978") == amount
+
+
+def test_minor_units_to_amount_unknown_currency_raises() -> None:
+    with pytest.raises(ValueError):
+        minor_units_to_amount("999", "840")
 
 
 def test_build_payment_request_produces_valid_signature() -> None:
@@ -136,6 +151,26 @@ def test_build_payment_request_without_sca_exemption_omits_the_field() -> None:
     request = facade.build_payment_request(order_number="1234567890", amount=Decimal("9.99"))
     decoded = decode_merchant_parameters(request.ds_merchant_parameters)
     assert "DS_MERCHANT_EXCEP_SCA" not in decoded
+
+
+def test_build_payment_request_with_consumer_language() -> None:
+    from oscar_redsys.language import ConsumerLanguage
+
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(
+        order_number="1234567890",
+        amount=Decimal("9.99"),
+        consumer_language=ConsumerLanguage.ENGLISH,
+    )
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+    assert decoded["DS_MERCHANT_CONSUMERLANGUAGE"] == "002"
+
+
+def test_build_payment_request_without_consumer_language_omits_the_field() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(order_number="1234567890", amount=Decimal("9.99"))
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+    assert "DS_MERCHANT_CONSUMERLANGUAGE" not in decoded
 
 
 def test_build_payment_request_with_both_emv3ds_and_sca_exemption() -> None:

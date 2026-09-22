@@ -32,6 +32,13 @@ class Emv3dsRedirectView(FixedOrderRedirectView):
         return ScaExemption.LOW_VALUE
 
 
+class ConsumerLanguageRedirectView(FixedOrderRedirectView):
+    def get_consumer_language(self) -> str:
+        from oscar_redsys.language import ConsumerLanguage
+
+        return ConsumerLanguage.ENGLISH
+
+
 def _post_notification(order_number: str, ds_response: str) -> dict[str, str]:
     raw = {"Ds_Order": order_number, "Ds_Response": ds_response}
     encoded = encode_merchant_parameters(raw)
@@ -66,6 +73,20 @@ def test_payment_redirect_view_includes_emv3ds_and_sca_exemption_when_provided(r
 
     assert decoded["DS_MERCHANT_EMV3DS"] == {"email": "example@example.com"}
     assert decoded["DS_MERCHANT_EXCEP_SCA"] == "LWV"
+
+
+@pytest.mark.django_db
+def test_payment_redirect_view_includes_consumer_language_when_provided(rf) -> None:
+    request = rf.get("/whatever/")
+    response = ConsumerLanguageRedirectView.as_view()(request)
+    response.render()
+
+    import re
+
+    match = re.search(r'name="Ds_MerchantParameters" value="([^"]+)"', response.content.decode())
+    assert match is not None
+    decoded = decode_merchant_parameters(match.group(1))
+    assert decoded["DS_MERCHANT_CONSUMERLANGUAGE"] == "002"
 
 
 @pytest.mark.django_db

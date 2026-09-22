@@ -70,6 +70,12 @@ class PaymentRedirectView(TemplateView):
         (see :class:`oscar_redsys.emv3ds.ScaExemption`). Optional."""
         return None
 
+    def get_consumer_language(self) -> str | None:
+        """Override to set what language Redsys's own hosted pages render
+        in (see :class:`oscar_redsys.language.ConsumerLanguage`) — purely
+        cosmetic, no effect on the payment itself. Optional."""
+        return None
+
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         facade = self.facade_class()
@@ -78,6 +84,7 @@ class PaymentRedirectView(TemplateView):
             amount=self.get_amount(),
             emv3ds=self.get_emv3ds(),
             sca_exemption=self.get_sca_exemption(),
+            consumer_language=self.get_consumer_language(),
             extra_parameters=self.get_extra_parameters(),
             **self.get_redirect_urls(),
         )

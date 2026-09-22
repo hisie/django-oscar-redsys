@@ -19,15 +19,11 @@ from typing import Any
 
 from .conf import SIGNATURE_VERSION, RedsysSettings, get_redsys_settings
 from .emv3ds import Emv3dsData
+from .order_number import validate_order_number
 from .params import decode_merchant_parameters, encode_merchant_parameters
 from .response_codes import is_authorized
 from .signature import sign_merchant_parameters, signatures_match
-
-# Standard payment (as opposed to pre-authorization/refund/etc.) — the only
-# transaction type this package builds requests for. Confirmed against the
-# manual's Ds_MerchantParameters examples (section 3.1/3.3), which all use
-# "0" for a plain sale.
-TRANSACTION_TYPE_PAYMENT = "0"
+from .transaction_types import PAYMENT as TRANSACTION_TYPE_PAYMENT
 
 # ISO 4217 minor-unit exponents this package has actually had to handle.
 # Extend as needed — deliberately not exhaustive, since guessing an
@@ -47,6 +43,20 @@ def amount_to_minor_units(amount: Decimal, currency: str) -> str:
         ) from exc
     quantized = amount.scaleb(exponent).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
     return str(int(quantized))
+
+
+def minor_units_to_amount(minor_units: str, currency: str) -> Decimal:
+    """Inverse of :func:`amount_to_minor_units` — used to recover the original
+    amount from a stored notification (``Ds_Amount``) when building a
+    refund/cancellation for it (:mod:`oscar_redsys.rest`)."""
+    try:
+        exponent = _CURRENCY_EXPONENTS[currency]
+    except KeyError as exc:
+        raise ValueError(
+            f"Unknown minor-unit exponent for currency {currency!r} — add it to "
+            "_CURRENCY_EXPONENTS rather than guessing."
+        ) from exc
+    return Decimal(minor_units).scaleb(-exponent)
 
 
 @dataclass(frozen=True)
@@ -84,8 +94,10 @@ class RedsysFacade:
         url_ko: str | None = None,
         emv3ds: Emv3dsData | None = None,
         sca_exemption: str | None = None,
+        consumer_language: str | None = None,
         extra_parameters: Mapping[str, Any] | None = None,
     ) -> PaymentRequest:
+        validate_order_number(order_number)
         settings = self.settings
         parameters: dict[str, Any] = {
             "DS_MERCHANT_AMOUNT": amount_to_minor_units(amount, settings.currency),
@@ -105,6 +117,8 @@ class RedsysFacade:
             parameters["DS_MERCHANT_EMV3DS"] = emv3ds.to_dict()
         if sca_exemption is not None:
             parameters["DS_MERCHANT_EXCEP_SCA"] = sca_exemption
+        if consumer_language is not None:
+            parameters["DS_MERCHANT_CONSUMERLANGUAGE"] = consumer_language
         if extra_parameters:
             parameters.update(extra_parameters)
 
@@ -124,11 +138,10 @@ class RedsysFacade:
 
         # Response field names ("Ds_Order", "Ds_Response", ...) are distinct
         # from the request's "DS_MERCHANT_*" names. The redirection manual
-        # itself doesn't spell these out (they're in the separate, unfetched
-        # "TPV-Virtual Parámetros Entrada-Salida.xlsx"); confirmed instead by
-        # cross-checking several independent third-party Redsys client
-        # implementations (PHP/Node/Go) that all decode the same field names
-        # from a notification payload.
+        # itself doesn't spell these out, but Redsys's own REST manual does
+        # (v4.0.1.1, "Estructura de respuesta REST" — the two manuals share
+        # the same response envelope/field names), confirming what was
+        # initially only cross-checked against third-party clients.
         order_number = str(raw_parameters["Ds_Order"])
         ds_response = str(raw_parameters.get("Ds_Response", ""))
 

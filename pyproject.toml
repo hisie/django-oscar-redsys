@@ -9,6 +9,7 @@ dependencies = [
     "django>=5.2,<5.3",
     "django-oscar>=4.2,<4.3",
     "pycryptodome>=3.20",
+    "requests>=2.31",
 ]
 
 [dependency-groups]
@@ -20,6 +21,7 @@ dev = [
     "pytest",
     "pytest-django",
     "django-stubs",
+    "types-requests",
 ]
 
 [build-system]
