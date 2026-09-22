@@ -162,6 +162,15 @@ Both signals fire **at most once** per order number — a resent Redsys
 notification (Redsys explicitly documents that it can resend) is a no-op
 the second time, per `RedsysNotification`'s uniqueness on `order_number`.
 
+`notification.transaction_type` (`Ds_TransactionType`) tells you *what
+kind* of operation this notification is about — `"0"` for a payment (see
+`oscar_redsys.transaction_types`), not a refund/cancellation/confirmation.
+This matters because `Ds_Merchant_MerchantURL` can be configured at the
+terminal level in Redsys's own portal rather than sent per-request, so
+the same endpoint could in principle also receive a notification for an
+operation `oscar_redsys.rest` triggered — check this field if your
+receiver needs to be sure it's reacting to an actual new payment.
+
 ### Common pitfall: `payment_confirmed` has no browser session
 
 `payment_confirmed` fires from `NotificationView` handling Redsys's async
@@ -246,6 +255,32 @@ since a self-consistent sign/verify round trip "works" either way and
 only breaks against Redsys itself). They differ only in the final
 encoding: V2 uses URL-safe base64 with padding stripped, V1 uses
 standard base64 with padding kept.
+
+### Signature comparison: strict by default
+
+Verifying an incoming signature (a notification, or a REST confirm/
+refund/cancel response) uses a strict, constant-time comparison by
+default. Redsys's own REST manual documents a *related* transport quirk
+(SIS0042: a merchant's own outgoing request signature can get corrupted
+by cURL/Safari turning `+` into a space — fixed by percent-encoding `+`
+as `%2B` before sending, not by comparing loosely on receipt), but that's
+about signing an *outgoing* request, not verifying one Redsys sends *to*
+you, and V2's URL-safe alphabet has no `+` to begin with. So this package
+doesn't loosen verification by default — nothing in Redsys's own
+documentation says that's needed.
+
+If you've observed real-world signature corruption on the *receiving*
+side despite that (e.g. an intermediate proxy mis-decoding form-encoded
+`+`), set:
+
+```python
+REDSYS_LENIENT_SIGNATURE_COMPARISON = True
+```
+
+This strips non-alphanumeric characters from both sides before
+comparing. Don't enable it speculatively — see
+`oscar_redsys/signature.py`'s "Lenient comparison" docstring for exactly
+what it does and doesn't defend against.
 
 ## Development
 

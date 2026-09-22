@@ -23,10 +23,16 @@ SETTINGS = RedsysSettings(
 )
 
 
-def _sign_and_wrap(order_number: str, ds_response: str) -> dict[str, str]:
+def _sign_and_wrap(
+    order_number: str, ds_response: str, transaction_type: str = REFUND
+) -> dict[str, str]:
     from oscar_redsys.params import encode_merchant_parameters_v1
 
-    raw = {"Ds_Order": order_number, "Ds_Response": ds_response}
+    raw = {
+        "Ds_Order": order_number,
+        "Ds_Response": ds_response,
+        "Ds_TransactionType": transaction_type,
+    }
     encoded = encode_merchant_parameters_v1(raw)
     signature = sign_merchant_parameters_v1(SETTINGS.secret_key, order_number, encoded)
     return {
@@ -74,8 +80,18 @@ def test_parse_operation_response_authorized() -> None:
     result = rest.parse_operation_response(body, settings=SETTINGS)
     assert result.error_code is None
     assert result.order_number == "1234567890"
+    assert result.transaction_type == REFUND
     assert result.signature_valid is True
     assert result.authorized is True
+
+
+def test_parse_operation_response_uses_lenient_comparison_when_configured() -> None:
+    lenient_settings = RedsysSettings(**{**SETTINGS.__dict__, "lenient_signature_comparison": True})
+    body = _sign_and_wrap("1234567890", "0900")
+    body["Ds_Signature"] = body["Ds_Signature"].replace("=", "")  # V1 always pads with "="
+
+    result = rest.parse_operation_response(body, settings=lenient_settings)
+    assert result.signature_valid is True
 
 
 def test_parse_operation_response_declined() -> None:

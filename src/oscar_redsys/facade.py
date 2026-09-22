@@ -71,10 +71,27 @@ class PaymentRequest:
 
 @dataclass(frozen=True)
 class Notification:
-    """A parsed, signature-checked Redsys notification (section 4.1)."""
+    """A parsed, signature-checked Redsys notification (section 4.1).
+
+    ``transaction_type`` (``Ds_TransactionType``) is exposed so a receiver
+    can tell *what kind* of operation this notification is about — a
+    payment (``"0"``, see :mod:`oscar_redsys.transaction_types`), not a
+    refund/cancellation/confirmation. This matters because
+    ``Ds_Merchant_MerchantURL`` can be configured at the terminal level in
+    Redsys's own portal rather than sent per-request, so the *same*
+    endpoint (and therefore the same ``payment_confirmed``/
+    ``payment_declined`` dispatch) could in principle also receive a
+    notification for an operation this package's own
+    :mod:`oscar_redsys.rest` module triggered, not just a redirect
+    payment. ``authorized`` itself doesn't need this distinction (the
+    manual's response-code ranges already imply the operation type), but
+    a receiver deciding what "confirmed" means for its own order model
+    usually does.
+    """
 
     order_number: str
     ds_response: str
+    transaction_type: str
     authorized: bool
     signature_valid: bool
     raw_parameters: dict[str, Any]
@@ -144,13 +161,19 @@ class RedsysFacade:
         # initially only cross-checked against third-party clients.
         order_number = str(raw_parameters["Ds_Order"])
         ds_response = str(raw_parameters.get("Ds_Response", ""))
+        transaction_type = str(raw_parameters.get("Ds_TransactionType", ""))
 
         signature_valid = signatures_match(
-            self.settings.secret_key, order_number, encoded_parameters, received_signature
+            self.settings.secret_key,
+            order_number,
+            encoded_parameters,
+            received_signature,
+            lenient=self.settings.lenient_signature_comparison,
         )
         return Notification(
             order_number=order_number,
             ds_response=ds_response,
+            transaction_type=transaction_type,
             authorized=signature_valid and is_authorized(ds_response),
             signature_valid=signature_valid,
             raw_parameters=raw_parameters,

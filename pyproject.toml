@@ -1,6 +1,6 @@
 [project]
 name = "django-oscar-redsys"
-version = "0.1.0"
+version = "0.2.0"
 description = "Redsys (TPV Virtual) redirection-method payment integration for django-oscar"
 readme = "README.md"
 requires-python = ">=3.12"

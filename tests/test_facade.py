@@ -193,11 +193,18 @@ def test_production_gateway_url_when_not_sandbox() -> None:
     assert request.gateway_url == "https://sis.redsys.es/sis/realizarPago"
 
 
-def _build_notification_post(order_number: str, ds_response: str) -> dict[str, str]:
+def _build_notification_post(
+    order_number: str, ds_response: str, transaction_type: str = "0"
+) -> dict[str, str]:
     from oscar_redsys.params import encode_merchant_parameters
     from oscar_redsys.signature import sign_merchant_parameters
 
-    raw = {"Ds_Order": order_number, "Ds_Response": ds_response, "Ds_MerchantCode": "999008881"}
+    raw = {
+        "Ds_Order": order_number,
+        "Ds_Response": ds_response,
+        "Ds_MerchantCode": "999008881",
+        "Ds_TransactionType": transaction_type,
+    }
     encoded = encode_merchant_parameters(raw)
     signature = sign_merchant_parameters(SETTINGS.secret_key, order_number, encoded)
     return {"Ds_MerchantParameters": encoded, "Ds_Signature": signature}
@@ -210,8 +217,45 @@ def test_parse_notification_authorized() -> None:
 
     assert notification.order_number == "1234567890"
     assert notification.ds_response == "0000"
+    assert notification.transaction_type == "0"
     assert notification.signature_valid is True
     assert notification.authorized is True
+
+
+def test_parse_notification_exposes_transaction_type_for_a_refund() -> None:
+    from oscar_redsys.transaction_types import REFUND
+
+    facade = RedsysFacade(settings=SETTINGS)
+    post = _build_notification_post("1234567890", "0900", transaction_type=REFUND)
+    notification = facade.parse_notification(post)
+
+    assert notification.transaction_type == REFUND
+    assert notification.authorized is True  # 900 is authorized regardless of type
+
+
+def test_parse_notification_missing_transaction_type_defaults_to_empty_string() -> None:
+    from oscar_redsys.params import encode_merchant_parameters
+    from oscar_redsys.signature import sign_merchant_parameters
+
+    raw = {"Ds_Order": "1234567890", "Ds_Response": "0000"}
+    encoded = encode_merchant_parameters(raw)
+    signature = sign_merchant_parameters(SETTINGS.secret_key, "1234567890", encoded)
+
+    facade = RedsysFacade(settings=SETTINGS)
+    notification = facade.parse_notification(
+        {"Ds_MerchantParameters": encoded, "Ds_Signature": signature}
+    )
+    assert notification.transaction_type == ""
+
+
+def test_parse_notification_uses_lenient_comparison_when_configured() -> None:
+    lenient_settings = RedsysSettings(**{**SETTINGS.__dict__, "lenient_signature_comparison": True})
+    facade = RedsysFacade(settings=lenient_settings)
+    post = _build_notification_post("1234567890", "0000")
+    post["Ds_Signature"] = post["Ds_Signature"].replace("-", " ").replace("_", "+")
+
+    notification = facade.parse_notification(post)
+    assert notification.signature_valid is True
 
 
 def test_parse_notification_declined_response_code() -> None:

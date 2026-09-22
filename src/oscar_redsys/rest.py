@@ -56,6 +56,7 @@ class RestOperationResult:
     error_code: str | None
     order_number: str | None = None
     ds_response: str | None = None
+    transaction_type: str | None = None
     signature_valid: bool = False
     authorized: bool = False
     raw_parameters: dict[str, Any] | None = None
@@ -141,13 +142,19 @@ def parse_operation_response(
 
     order_number = str(raw_parameters["Ds_Order"])
     ds_response = str(raw_parameters.get("Ds_Response", ""))
+    transaction_type = str(raw_parameters.get("Ds_TransactionType", ""))
     signature_valid = signatures_match_v1(
-        settings.secret_key, order_number, encoded_parameters, received_signature
+        settings.secret_key,
+        order_number,
+        encoded_parameters,
+        received_signature,
+        lenient=settings.lenient_signature_comparison,
     )
     return RestOperationResult(
         error_code=None,
         order_number=order_number,
         ds_response=ds_response,
+        transaction_type=transaction_type,
         signature_valid=signature_valid,
         authorized=signature_valid and is_authorized(ds_response),
         raw_parameters=raw_parameters,

@@ -151,3 +151,29 @@ def test_wrong_secret_key_invalidates_signature() -> None:
     params = "eyJmb28iOiAiYmFyIn0"
     signature = sign_merchant_parameters(MANUAL_SECRET_KEY, "1234567890", params)
     assert not signatures_match("a-different-key1", "1234567890", params, signature)
+
+
+def test_lenient_comparison_tolerates_punctuation_differences() -> None:
+    # Not a real Redsys scenario reproduced here — just proving the
+    # sanitize-then-compare mechanics work, per signature.py's own
+    # "Lenient comparison" docstring caveat about when this is (and isn't)
+    # an appropriate thing to enable.
+    params = "eyJmb28iOiAiYmFyIn0"
+    signature = sign_merchant_parameters(MANUAL_SECRET_KEY, "1234567890", params)
+    mangled = signature.replace("-", " ").replace("_", "+")  # punctuation-only change
+    assert not signatures_match(MANUAL_SECRET_KEY, "1234567890", params, mangled)
+    assert signatures_match(MANUAL_SECRET_KEY, "1234567890", params, mangled, lenient=True)
+
+
+def test_lenient_comparison_still_rejects_a_genuinely_different_signature() -> None:
+    params = "eyJmb28iOiAiYmFyIn0"
+    signature = sign_merchant_parameters(MANUAL_SECRET_KEY, "1234567890", params)
+    tampered = "a" + signature[1:]  # an actual alphanumeric character changed
+    assert not signatures_match(MANUAL_SECRET_KEY, "1234567890", params, tampered, lenient=True)
+
+
+def test_v1_lenient_comparison_tolerates_punctuation_differences() -> None:
+    params = "eyJmb28iOiAiYmFyIn0="
+    signature = sign_merchant_parameters_v1(MANUAL_SECRET_KEY, "1234567890", params)
+    mangled = signature.replace("=", "").replace("/", " ")
+    assert signatures_match_v1(MANUAL_SECRET_KEY, "1234567890", params, mangled, lenient=True)

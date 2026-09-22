@@ -31,6 +31,7 @@ class RedsysSettings:
     merchant_url: str
     url_ok: str
     url_ko: str
+    lenient_signature_comparison: bool = False
 
     @property
     def gateway_url(self) -> str:
@@ -54,4 +55,10 @@ def get_redsys_settings() -> RedsysSettings:
         merchant_url=_get_required("REDSYS_MERCHANT_URL"),
         url_ok=_get_required("REDSYS_URL_OK"),
         url_ko=_get_required("REDSYS_URL_KO"),
+        # Off by default — see oscar_redsys.signature's "Lenient
+        # comparison" note for exactly what this does and doesn't defend
+        # against before turning it on.
+        lenient_signature_comparison=bool(
+            getattr(settings, "REDSYS_LENIENT_SIGNATURE_COMPARISON", False)
+        ),
     )

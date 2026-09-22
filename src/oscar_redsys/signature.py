@@ -37,6 +37,23 @@ two different channels:
      reuses the very same key+order as the V2 example above.
 
 Both worked examples are verified byte-exact in ``tests/test_signature.py``.
+
+**Lenient comparison** (``signatures_match(..., lenient=True)``): Redsys's
+own REST manual documents a *related* but distinct transport quirk in its
+"Errores frecuentes" section (SIS0042) — a merchant's own *outgoing*
+request signature can get corrupted if built via cURL or submitted from
+Safari, which can turn ``+`` into a space; Redsys's own fix for that is to
+percent-encode ``+`` as ``%2B`` before sending, not to compare loosely on
+receipt. That documented case is about signing our own outgoing request,
+not about verifying a signature *Redsys* sends *to* us, and V2's URL-safe
+alphabet has no ``+`` to begin with — so this package defaults to a
+strict, constant-time comparison (``hmac.compare_digest``) for verifying
+incoming signatures, since nothing in Redsys's own documentation says
+that needs loosening. The ``lenient`` flag exists as an opt-in escape
+hatch (``REDSYS_LENIENT_SIGNATURE_COMPARISON`` — see ``conf.py``) for a
+host project that has *observed* real-world signature corruption on the
+receiving side despite that (e.g. an intermediate proxy that mis-decodes
+form-encoded ``+``) — never enable it speculatively.
 """
 
 from __future__ import annotations
@@ -44,9 +61,20 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import re
 
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad
+
+_NON_ALPHANUMERIC = re.compile(r"[^A-Za-z0-9]")
+
+
+def _sanitize_for_lenient_comparison(signature: str) -> str:
+    """Strip everything but letters/digits — see the module docstring's
+    "Lenient comparison" note for exactly what this is, and isn't, a
+    defense against."""
+    return _NON_ALPHANUMERIC.sub("", signature)
+
 
 _KEY_LENGTH = 16
 _BLOCK_SIZE = 16
@@ -89,9 +117,20 @@ def sign_merchant_parameters(secret_key: str, order: str, merchant_parameters: s
     return base64.urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
 
 
-def signatures_match(secret_key: str, order: str, merchant_parameters: str, signature: str) -> bool:
-    """Constant-time comparison of a received V2 signature against the recomputed one."""
+def signatures_match(
+    secret_key: str, order: str, merchant_parameters: str, signature: str, *, lenient: bool = False
+) -> bool:
+    """Comparison of a received V2 signature against the recomputed one.
+
+    Strict (``lenient=False``, the default) uses a constant-time
+    comparison of the two signatures exactly as received. ``lenient=True``
+    strips non-alphanumeric characters from both sides first — see the
+    module docstring's "Lenient comparison" note before enabling this.
+    """
     expected = sign_merchant_parameters(secret_key, order, merchant_parameters)
+    if lenient:
+        expected = _sanitize_for_lenient_comparison(expected)
+        signature = _sanitize_for_lenient_comparison(signature)
     return hmac.compare_digest(expected, signature)
 
 
@@ -105,8 +144,12 @@ def sign_merchant_parameters_v1(secret_key: str, order: str, merchant_parameters
 
 
 def signatures_match_v1(
-    secret_key: str, order: str, merchant_parameters: str, signature: str
+    secret_key: str, order: str, merchant_parameters: str, signature: str, *, lenient: bool = False
 ) -> bool:
-    """Constant-time comparison of a received V1 signature against the recomputed one."""
+    """Comparison of a received V1 signature against the recomputed one — see
+    :func:`signatures_match`'s ``lenient`` note, which applies identically here."""
     expected = sign_merchant_parameters_v1(secret_key, order, merchant_parameters)
+    if lenient:
+        expected = _sanitize_for_lenient_comparison(expected)
+        signature = _sanitize_for_lenient_comparison(signature)
     return hmac.compare_digest(expected, signature)

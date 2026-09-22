@@ -15,6 +15,12 @@ def test_get_redsys_settings_reads_from_django_settings() -> None:
     assert settings.currency == "978"
     assert settings.sandbox is True
     assert settings.gateway_url == "https://sis-t.redsys.es:25443/sis/realizarPago"
+    assert settings.lenient_signature_comparison is False
+
+
+@override_settings(REDSYS_LENIENT_SIGNATURE_COMPARISON=True)
+def test_get_redsys_settings_lenient_signature_comparison_opt_in() -> None:
+    assert get_redsys_settings().lenient_signature_comparison is True
 
 
 @override_settings(REDSYS_SANDBOX=False)
