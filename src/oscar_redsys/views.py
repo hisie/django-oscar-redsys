@@ -28,6 +28,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import TemplateView
 
 from . import signals
+from .emv3ds import Emv3dsData
 from .facade import Notification, RedsysFacade
 from .models import RedsysNotification
 
@@ -57,12 +58,26 @@ class PaymentRedirectView(TemplateView):
     def get_extra_parameters(self) -> dict[str, Any]:
         return {}
 
+    def get_emv3ds(self) -> Emv3dsData | None:
+        """Override to supply cardholder/shipping context for EMV3DS's risk
+        analysis — better data here means more customers go frictionless
+        instead of hitting an SCA challenge. Optional: a payment works
+        without it either way."""
+        return None
+
+    def get_sca_exemption(self) -> str | None:
+        """Override to claim one of the PSD2 SCA exemptions Redsys supports
+        (see :class:`oscar_redsys.emv3ds.ScaExemption`). Optional."""
+        return None
+
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         facade = self.facade_class()
         payment_request = facade.build_payment_request(
             order_number=self.get_order_number(),
             amount=self.get_amount(),
+            emv3ds=self.get_emv3ds(),
+            sca_exemption=self.get_sca_exemption(),
             extra_parameters=self.get_extra_parameters(),
             **self.get_redirect_urls(),
         )

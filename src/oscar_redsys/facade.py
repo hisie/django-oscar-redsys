@@ -2,11 +2,12 @@
 
 Deliberately thin — it wires together :mod:`oscar_redsys.params` and
 :mod:`oscar_redsys.signature` around the specific fields the redirection
-manual's section 3 describes, and nothing else. Line-item detail,
-customer data (EMV3DS's optional ``DS_MERCHANT_EMV3DS`` object) etc. are
-left to the caller to add via ``extra_parameters`` rather than grown into
-this class's constructor, since which of those fields matter is a
-per-integration decision this package shouldn't guess at.
+manual's section 3 describes, plus the optional EMV3DS/SCA fields from
+:mod:`oscar_redsys.emv3ds`. Line-item detail and anything not covered by
+either of those are left to the caller to add via ``extra_parameters``
+rather than grown into this class's constructor, since which of those
+fields matter is a per-integration decision this package shouldn't guess
+at.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from .conf import SIGNATURE_VERSION, RedsysSettings, get_redsys_settings
+from .emv3ds import Emv3dsData
 from .params import decode_merchant_parameters, encode_merchant_parameters
 from .response_codes import is_authorized
 from .signature import sign_merchant_parameters, signatures_match
@@ -80,6 +82,8 @@ class RedsysFacade:
         merchant_url: str | None = None,
         url_ok: str | None = None,
         url_ko: str | None = None,
+        emv3ds: Emv3dsData | None = None,
+        sca_exemption: str | None = None,
         extra_parameters: Mapping[str, Any] | None = None,
     ) -> PaymentRequest:
         settings = self.settings
@@ -94,6 +98,13 @@ class RedsysFacade:
             "DS_MERCHANT_URLOK": url_ok or settings.url_ok,
             "DS_MERCHANT_URLKO": url_ko or settings.url_ko,
         }
+        # Mutually optional, per the manual's own separate examples for each
+        # (section 3.3.4) — nothing here forbids sending both at once, so
+        # neither is validated against the other.
+        if emv3ds is not None:
+            parameters["DS_MERCHANT_EMV3DS"] = emv3ds.to_dict()
+        if sca_exemption is not None:
+            parameters["DS_MERCHANT_EXCEP_SCA"] = sca_exemption
         if extra_parameters:
             parameters.update(extra_parameters)
 

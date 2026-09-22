@@ -5,6 +5,7 @@ from decimal import Decimal
 import pytest
 
 from oscar_redsys.conf import RedsysSettings
+from oscar_redsys.emv3ds import Emv3dsData, MobilePhone, ScaExemption
 from oscar_redsys.facade import RedsysFacade, amount_to_minor_units
 from oscar_redsys.params import decode_merchant_parameters
 from oscar_redsys.signature import signatures_match
@@ -83,6 +84,71 @@ def test_build_payment_request_per_call_urls_override_settings() -> None:
     decoded = decode_merchant_parameters(request.ds_merchant_parameters)
     assert decoded["DS_MERCHANT_MERCHANTURL"] == "https://override.example.com/notify/"
     assert decoded["DS_MERCHANT_URLOK"] == "https://example.com/ok/"  # unaffected
+
+
+def test_build_payment_request_with_emv3ds_data() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    emv3ds = Emv3dsData(
+        ship_addr_country="840",
+        cardholder_name="Cardholder Name",
+        email="example@example.com",
+        mobile_phone=MobilePhone(country_code="123", subscriber="123456789"),
+    )
+    request = facade.build_payment_request(
+        order_number="1234567890", amount=Decimal("9.99"), emv3ds=emv3ds
+    )
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+
+    assert decoded["DS_MERCHANT_EMV3DS"] == {
+        "shipAddrCountry": "840",
+        "cardholderName": "Cardholder Name",
+        "email": "example@example.com",
+        "mobilePhone": {"cc": "123", "subscriber": "123456789"},
+    }
+    assert signatures_match(
+        SETTINGS.secret_key,
+        "1234567890",
+        request.ds_merchant_parameters,
+        request.ds_signature,
+    )
+
+
+def test_build_payment_request_without_emv3ds_omits_the_field() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(order_number="1234567890", amount=Decimal("9.99"))
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+    assert "DS_MERCHANT_EMV3DS" not in decoded
+
+
+def test_build_payment_request_with_sca_exemption() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(
+        order_number="1234567890",
+        amount=Decimal("9.99"),
+        sca_exemption=ScaExemption.TRANSACTION_RISK_ANALYSIS,
+    )
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+    assert decoded["DS_MERCHANT_EXCEP_SCA"] == "TRA"
+
+
+def test_build_payment_request_without_sca_exemption_omits_the_field() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(order_number="1234567890", amount=Decimal("9.99"))
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+    assert "DS_MERCHANT_EXCEP_SCA" not in decoded
+
+
+def test_build_payment_request_with_both_emv3ds_and_sca_exemption() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(
+        order_number="1234567890",
+        amount=Decimal("9.99"),
+        emv3ds=Emv3dsData(email="example@example.com"),
+        sca_exemption=ScaExemption.LOW_VALUE,
+    )
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+    assert decoded["DS_MERCHANT_EMV3DS"] == {"email": "example@example.com"}
+    assert decoded["DS_MERCHANT_EXCEP_SCA"] == "LWV"
 
 
 def test_production_gateway_url_when_not_sandbox() -> None:

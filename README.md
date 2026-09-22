@@ -82,6 +82,39 @@ class CheckoutPaymentView(PaymentRedirectView):
         return self.request.basket.total_incl_tax
 ```
 
+## EMV3DS / SCA (optional, but improves checkout friction)
+
+PSD2 requires Strong Customer Authentication (SCA) on most card
+payments; Redsys's EMV 3DS flow decides per transaction whether the
+issuer can authenticate the cardholder "frictionlessly" or must
+"challenge" them. Neither of the following is required for a payment to
+work, but supplying them lets more transactions go frictionless:
+
+```python
+from oscar_redsys.emv3ds import Emv3dsData, MobilePhone, ScaExemption
+
+
+class CheckoutPaymentView(PaymentRedirectView):
+    ...
+
+    def get_emv3ds(self) -> Emv3dsData:
+        return Emv3dsData(
+            ship_addr_country="724",  # numeric ISO 3166-1, e.g. Spain
+            cardholder_name=self.request.user.get_full_name(),
+            email=self.request.user.email,
+            mobile_phone=MobilePhone(country_code="34", subscriber="600123456"),
+        )
+
+    def get_sca_exemption(self) -> str | None:
+        if self.get_amount() <= Decimal("30.00"):
+            return ScaExemption.LOW_VALUE
+        return None
+```
+
+`ScaExemption` only defines the three values confirmed against Redsys's
+own PSD2/SCA documentation (`LWV`, `TRA`, `MIT`) — pass any other code
+Redsys documents as a plain string, it isn't restricted to these.
+
 This renders an auto-submitting form pointed at Redsys's payment page.
 
 ## Handling the outcome

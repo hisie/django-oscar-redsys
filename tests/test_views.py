@@ -7,8 +7,9 @@ from django.test import Client
 from django.urls import reverse
 
 from oscar_redsys import signals
+from oscar_redsys.emv3ds import Emv3dsData, ScaExemption
 from oscar_redsys.models import RedsysNotification
-from oscar_redsys.params import encode_merchant_parameters
+from oscar_redsys.params import decode_merchant_parameters, encode_merchant_parameters
 from oscar_redsys.signature import sign_merchant_parameters
 from oscar_redsys.views import PaymentRedirectView
 
@@ -21,6 +22,14 @@ class FixedOrderRedirectView(PaymentRedirectView):
 
     def get_amount(self) -> Decimal:
         return Decimal("9.99")
+
+
+class Emv3dsRedirectView(FixedOrderRedirectView):
+    def get_emv3ds(self) -> Emv3dsData:
+        return Emv3dsData(email="example@example.com")
+
+    def get_sca_exemption(self) -> str:
+        return ScaExemption.LOW_VALUE
 
 
 def _post_notification(order_number: str, ds_response: str) -> dict[str, str]:
@@ -41,6 +50,22 @@ def test_payment_redirect_view_renders_auto_submitting_form(rf) -> None:
     assert "Ds_MerchantParameters" in content
     assert "Ds_Signature" in content
     assert "sis-t.redsys.es" in content  # sandbox URL, per tests/settings.py
+
+
+@pytest.mark.django_db
+def test_payment_redirect_view_includes_emv3ds_and_sca_exemption_when_provided(rf) -> None:
+    request = rf.get("/whatever/")
+    response = Emv3dsRedirectView.as_view()(request)
+    response.render()
+
+    import re
+
+    match = re.search(r'name="Ds_MerchantParameters" value="([^"]+)"', response.content.decode())
+    assert match is not None
+    decoded = decode_merchant_parameters(match.group(1))
+
+    assert decoded["DS_MERCHANT_EMV3DS"] == {"email": "example@example.com"}
+    assert decoded["DS_MERCHANT_EXCEP_SCA"] == "LWV"
 
 
 @pytest.mark.django_db
