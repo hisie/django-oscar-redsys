@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Payment result</title>
+</head>
+<body>
+{% if notification and notification.signature_valid %}
+    <p>Thank you — your order {{ order_number }} has been processed.</p>
+{% else %}
+    <p>
+        We're still confirming your payment for order {{ order_number }}. This
+        page does not itself decide whether the payment succeeded — check
+        your order status in a moment, or contact us if this persists.
+    </p>
+{% endif %}
+</body>
+</html>

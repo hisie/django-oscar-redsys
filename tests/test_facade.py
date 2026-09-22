@@ -1,0 +1,140 @@
+from __future__ import annotations
+
+from decimal import Decimal
+
+import pytest
+
+from oscar_redsys.conf import RedsysSettings
+from oscar_redsys.facade import RedsysFacade, amount_to_minor_units
+from oscar_redsys.params import decode_merchant_parameters
+from oscar_redsys.signature import signatures_match
+
+SETTINGS = RedsysSettings(
+    merchant_code="999008881",
+    terminal="1",
+    secret_key="sq7HjrUOBfKmC576",
+    currency="978",
+    sandbox=True,
+    merchant_url="https://example.com/notify/",
+    url_ok="https://example.com/ok/",
+    url_ko="https://example.com/ko/",
+)
+
+
+def test_amount_to_minor_units_eur() -> None:
+    assert amount_to_minor_units(Decimal("9.99"), "978") == "999"
+    assert amount_to_minor_units(Decimal("100"), "978") == "10000"
+    assert amount_to_minor_units(Decimal("0.01"), "978") == "1"
+
+
+def test_amount_to_minor_units_unknown_currency_raises() -> None:
+    with pytest.raises(ValueError):
+        amount_to_minor_units(Decimal("9.99"), "840")  # USD, not in our known-exponent table
+
+
+def test_build_payment_request_produces_valid_signature() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(order_number="1234567890", amount=Decimal("9.99"))
+
+    assert request.ds_signature_version == "HMAC_SHA512_V2"
+    assert request.gateway_url == "https://sis-t.redsys.es:25443/sis/realizarPago"
+    assert signatures_match(
+        SETTINGS.secret_key,
+        "1234567890",
+        request.ds_merchant_parameters,
+        request.ds_signature,
+    )
+
+
+def test_build_payment_request_encodes_expected_fields() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(order_number="1234567890", amount=Decimal("9.99"))
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+
+    assert decoded["DS_MERCHANT_AMOUNT"] == "999"
+    assert decoded["DS_MERCHANT_ORDER"] == "1234567890"
+    assert decoded["DS_MERCHANT_MERCHANTCODE"] == "999008881"
+    assert decoded["DS_MERCHANT_CURRENCY"] == "978"
+    assert decoded["DS_MERCHANT_TRANSACTIONTYPE"] == "0"
+    assert decoded["DS_MERCHANT_TERMINAL"] == "1"
+    assert decoded["DS_MERCHANT_MERCHANTURL"] == "https://example.com/notify/"
+    assert decoded["DS_MERCHANT_URLOK"] == "https://example.com/ok/"
+    assert decoded["DS_MERCHANT_URLKO"] == "https://example.com/ko/"
+
+
+def test_build_payment_request_extra_parameters_override_nothing_unexpected() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(
+        order_number="1234567890",
+        amount=Decimal("9.99"),
+        extra_parameters={"DS_MERCHANT_PRODUCTDESCRIPTION": "1x Palmera"},
+    )
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+    assert decoded["DS_MERCHANT_PRODUCTDESCRIPTION"] == "1x Palmera"
+
+
+def test_build_payment_request_per_call_urls_override_settings() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    request = facade.build_payment_request(
+        order_number="1234567890",
+        amount=Decimal("9.99"),
+        merchant_url="https://override.example.com/notify/",
+    )
+    decoded = decode_merchant_parameters(request.ds_merchant_parameters)
+    assert decoded["DS_MERCHANT_MERCHANTURL"] == "https://override.example.com/notify/"
+    assert decoded["DS_MERCHANT_URLOK"] == "https://example.com/ok/"  # unaffected
+
+
+def test_production_gateway_url_when_not_sandbox() -> None:
+    prod_settings = RedsysSettings(**{**SETTINGS.__dict__, "sandbox": False})
+    facade = RedsysFacade(settings=prod_settings)
+    request = facade.build_payment_request(order_number="1234567890", amount=Decimal("1"))
+    assert request.gateway_url == "https://sis.redsys.es/sis/realizarPago"
+
+
+def _build_notification_post(order_number: str, ds_response: str) -> dict[str, str]:
+    from oscar_redsys.params import encode_merchant_parameters
+    from oscar_redsys.signature import sign_merchant_parameters
+
+    raw = {"Ds_Order": order_number, "Ds_Response": ds_response, "Ds_MerchantCode": "999008881"}
+    encoded = encode_merchant_parameters(raw)
+    signature = sign_merchant_parameters(SETTINGS.secret_key, order_number, encoded)
+    return {"Ds_MerchantParameters": encoded, "Ds_Signature": signature}
+
+
+def test_parse_notification_authorized() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    post = _build_notification_post("1234567890", "0000")
+    notification = facade.parse_notification(post)
+
+    assert notification.order_number == "1234567890"
+    assert notification.ds_response == "0000"
+    assert notification.signature_valid is True
+    assert notification.authorized is True
+
+
+def test_parse_notification_declined_response_code() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    post = _build_notification_post("1234567890", "0180")
+    notification = facade.parse_notification(post)
+
+    assert notification.signature_valid is True
+    assert notification.authorized is False
+
+
+def test_parse_notification_tampered_signature() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    post = _build_notification_post("1234567890", "0000")
+    post["Ds_Signature"] = post["Ds_Signature"][:-1] + (
+        "A" if post["Ds_Signature"][-1] != "A" else "B"
+    )
+    notification = facade.parse_notification(post)
+
+    assert notification.signature_valid is False
+    assert notification.authorized is False
+
+
+def test_parse_notification_missing_field_raises_key_error() -> None:
+    facade = RedsysFacade(settings=SETTINGS)
+    with pytest.raises(KeyError):
+        facade.parse_notification({"Ds_MerchantParameters": "eyJhIjogMX0"})

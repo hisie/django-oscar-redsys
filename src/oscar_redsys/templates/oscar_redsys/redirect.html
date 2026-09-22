@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Redirecting to Redsys…</title>
+</head>
+<body onload="document.forms[0].submit();">
+    <p>Redirecting to the payment gateway, please wait…</p>
+    <form action="{{ payment_request.gateway_url }}" method="post">
+        <input type="hidden" name="Ds_SignatureVersion" value="{{ payment_request.ds_signature_version }}">
+        <input type="hidden" name="Ds_MerchantParameters" value="{{ payment_request.ds_merchant_parameters }}">
+        <input type="hidden" name="Ds_Signature" value="{{ payment_request.ds_signature }}">
+        <noscript>
+            <button type="submit">Continue to payment</button>
+        </noscript>
+    </form>
+</body>
+</html>
