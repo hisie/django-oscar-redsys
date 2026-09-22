@@ -149,6 +149,7 @@ from oscar_redsys.signals import payment_confirmed, payment_declined
 @receiver(payment_confirmed)
 def on_payment_confirmed(sender, order_number, notification, **kwargs):
     # place the order / trigger the Dolibarr sync chain / etc.
+    # See "Common pitfall" below before reading anything session-backed here.
     ...
 
 
@@ -160,6 +161,47 @@ def on_payment_declined(sender, order_number, notification, **kwargs):
 Both signals fire **at most once** per order number — a resent Redsys
 notification (Redsys explicitly documents that it can resend) is a no-op
 the second time, per `RedsysNotification`'s uniqueness on `order_number`.
+
+### Common pitfall: `payment_confirmed` has no browser session
+
+`payment_confirmed` fires from `NotificationView` handling Redsys's async
+server-to-server POST — there is no browser, no cookies, no session
+attached to that request at all. If your receiver's "place the order"
+logic reads anything from your checkout framework's *session-backed*
+state (e.g. django-oscar's own `checkout_session` — the shipping
+address, billing address and shipping method a customer chose only ever
+live there until an order is actually placed, per
+`CheckoutSessionData.get_shipping_address`'s own docstring), it will find
+nothing there. Concretely: a customer who pays and then closes their
+browser before your own return/thank-you view ever runs would have a
+confirmed Redsys payment with **no corresponding order** — Redsys's own
+"síncrona" notification default (the async notification is delivered
+*before* the browser redirect, per the redirection manual's section 4.1)
+doesn't rescue this, since it only orders the two *deliveries* relative
+to each other; it can't force the customer's *browser* to actually
+follow the redirect back.
+
+This isn't something this package can fix for you — it doesn't know
+anything about your order model or checkout framework — but it's a real
+trap worth avoiding deliberately rather than discovering in production:
+
+1. **Before** redirecting to Redsys (wherever you build the
+   `PaymentRequest`/raise your framework's redirect), write everything
+   your order-placement logic will need to a durable model of your own
+   — not just the session. At minimum: the shipping/billing address, the
+   shipping method, and the exact amount you're about to charge.
+2. Snapshot that amount rather than planning to recompute it later. A
+   frozen/locked basket's *contents* usually can't change once payment
+   starts, but its *prices* often aren't frozen too — recomputing the
+   total from the basket at confirmation time (which can be minutes
+   after the redirect) risks placing an order for a different amount
+   than what Redsys actually charged, if a price changed in between.
+3. In your `payment_confirmed` receiver, read from that durable model,
+   never from a session. Make the resulting "place the order" function
+   idempotent and callable from more than one place — the signal is the
+   normal trigger, but keeping a return-view fallback that calls the
+   *same* function is what makes a delayed or lost webhook harmless
+   rather than silently dropping the order.
 
 ## Refunds and cancellations — staff/admin only, never storefront
 
