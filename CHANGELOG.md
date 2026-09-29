@@ -46,6 +46,6 @@ fields/settings have safe defaults.
   channel, audited via `RedsysOperation`), `DS_MERCHANT_CONSUMERLANGUAGE`
   support.
 
-[Unreleased]: https://github.com/hisie/django-oscar-redsys/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/hisie/django-oscar-redsys/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/hisie/django-oscar-redsys/releases/tag/v0.1.0
+[Unreleased]: https://github.com/hisie/django-oscar-redsys/compare/0.2.0...HEAD
+[0.2.0]: https://github.com/hisie/django-oscar-redsys/compare/0.1.0...0.2.0
+[0.1.0]: https://github.com/hisie/django-oscar-redsys/releases/tag/0.1.0
