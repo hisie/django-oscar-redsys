@@ -42,10 +42,6 @@ fields/settings have safe defaults.
   confirm/refund/cancel), verified byte-exact against Redsys's own
   published worked examples, not just self-consistent round-trip tests.
 - EMV3DS/SCA support (`DS_MERCHANT_EMV3DS`, `DS_MERCHANT_EXCEP_SCA`).
-- A critical signing bug fixed before ever reaching a live endpoint: the
-  HMAC key must be the *base64 string* of the derived key, not its raw
-  bytes — a subtle misread of the manual only caught by reproducing
-  Redsys's own worked example end-to-end.
 - Order-number validation, refunds/cancellations (admin-gated REST
   channel, audited via `RedsysOperation`), `DS_MERCHANT_CONSUMERLANGUAGE`
   support.
