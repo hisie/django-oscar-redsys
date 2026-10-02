@@ -5,8 +5,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-02
+
+Docs-only — no code change.
+
+### Added
+
 - Documented the Oscar checkout `payment-details` step-skip pattern in
-  the README (docs only, no code change).
+  the README ("Integrating with Oscar's checkout flow").
+- `CHANGELOG.md` itself didn't exist until after 0.2.0 was published;
+  bumping so PyPI's project page reflects it (PyPI freezes the README/
+  description at publish time, so it would otherwise stay stale
+  relative to what's in git).
 
 ## [0.2.0] - 2026-09-22
 
@@ -46,6 +56,7 @@ fields/settings have safe defaults.
   channel, audited via `RedsysOperation`), `DS_MERCHANT_CONSUMERLANGUAGE`
   support.
 
-[Unreleased]: https://github.com/hisie/django-oscar-redsys/compare/0.2.0...HEAD
+[Unreleased]: https://github.com/hisie/django-oscar-redsys/compare/0.2.1...HEAD
+[0.2.1]: https://github.com/hisie/django-oscar-redsys/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/hisie/django-oscar-redsys/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/hisie/django-oscar-redsys/releases/tag/0.1.0
