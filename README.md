@@ -89,6 +89,55 @@ characters, the first 4 numeric, the rest (if any) plain ASCII
 digits/letters — validated up front (`ValueError` if not), rather than
 letting a malformed order fail opaquely at Redsys's end.
 
+## Integrating with Oscar's checkout flow
+
+Oscar's stock checkout wizard is built around gateways that collect card
+details *on your own site* — its `payment-details` step (URL name
+`checkout:payment-details`) exists to render that form, *before* the
+`preview` step. A redirect-only gateway like Redsys collects nothing on
+that step at all, so if you leave Oscar's default `PaymentDetailsView`
+behaviour in place, customers see Oscar's own "This page needs
+implementing within your project" placeholder on `payment-details` for
+no reason, and the checkout breadcrumb shows "Payment" *before*
+"Preview" even though nothing payment-related actually happens until
+"Place order" is clicked on Preview.
+
+Skip that step outright with Oscar's own skip-condition mechanism
+(`oscar.apps.checkout.session.CheckoutSessionMixin`), rather than
+overriding `get()`/`post()` yourself:
+
+```python
+from django.urls import reverse
+from oscar.apps.checkout.views import PaymentDetailsView as OscarPaymentDetailsView
+from oscar.core.loading import get_class
+
+PassedSkipCondition = get_class("checkout.exceptions", "PassedSkipCondition")
+
+
+class PaymentDetailsView(OscarPaymentDetailsView):
+    def get_skip_conditions(self, request):
+        conditions = super().get_skip_conditions(request)
+        if not self.preview:
+            # Oscar's own skip_unless_payment_is_required (inherited
+            # above) only skips this step for free orders. A redirect
+            # gateway collects nothing here regardless of order total,
+            # so always skip straight to preview.
+            conditions = [*conditions, "skip_payment_details_no_form_required"]
+        return conditions
+
+    def skip_payment_details_no_form_required(self, request):
+        raise PassedSkipCondition(url=reverse("checkout:preview"))
+
+    def handle_payment(self, order_number, total, **kwargs):
+        ...  # build/render the redirect, e.g. via CheckoutPaymentView above
+```
+
+With this in place the customer-visible flow becomes: shipping address →
+shipping method → preview (the real, shipping-inclusive total) → redirect
+to Redsys → confirmation on return — matching what actually happens,
+instead of an empty "Payment" step sitting in front of the total the
+customer is about to be charged.
+
 ## EMV3DS / SCA (optional, but improves checkout friction)
 
 PSD2 requires Strong Customer Authentication (SCA) on most card
