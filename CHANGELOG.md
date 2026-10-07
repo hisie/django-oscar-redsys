@@ -5,6 +5,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- `oscar_redsys/locale/en`: the English source catalogue (empty `msgstr`s, `.po`
+  and `.mo`), the same reference template Django and Oscar ship. No
+  behaviour change: the `msgid` is the English text.
+
 ## [0.3.0] - 2026-10-07
 
 ### Added

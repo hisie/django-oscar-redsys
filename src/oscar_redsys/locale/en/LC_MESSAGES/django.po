@@ -1,0 +1,143 @@
+# English source catalogue for django-oscar-redsys (msgstr left empty: the msgid is the
+# English text). Reference template for translators; regenerate with
+# `django-admin makemessages -l en` from src/oscar_redsys/.
+msgid ""
+msgstr ""
+"Project-Id-Version: django-oscar-redsys\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, python-format
+msgid "Order %(order)s: no recorded amount to %(infinitive)s, skipped."
+msgstr ""
+
+#, python-format
+msgid "Order %(order)s: %(operation)s request failed — see logs."
+msgstr ""
+
+#, python-format
+msgid "Order %(order)s: %(operation)s succeeded."
+msgstr ""
+
+#, python-format
+msgid "Order %(order)s: %(operation)s failed (%(code)s)."
+msgstr ""
+
+msgid "Refund selected payments (full originally-authorized amount)"
+msgstr ""
+
+msgctxt "Redsys operation (noun)"
+msgid "refund"
+msgstr ""
+
+msgctxt "Redsys operation (infinitive)"
+msgid "refund"
+msgstr ""
+
+msgid "Cancel selected payments"
+msgstr ""
+
+msgctxt "Redsys operation (noun)"
+msgid "cancellation"
+msgstr ""
+
+msgctxt "Redsys operation (infinitive)"
+msgid "cancel"
+msgstr ""
+
+msgid "Redsys payment integration"
+msgstr ""
+
+msgid "Order number"
+msgstr ""
+
+msgid "Redsys response code"
+msgstr ""
+
+msgid "Signature valid"
+msgstr ""
+
+msgid "Raw merchant parameters"
+msgstr ""
+
+msgid "Created at"
+msgstr ""
+
+msgid "Redsys notification"
+msgstr ""
+
+msgid "Redsys notifications"
+msgstr ""
+
+#, python-format
+msgid "Redsys notification for order %(order)s (Ds_Response=%(response)s)"
+msgstr ""
+
+msgid "Confirmation"
+msgstr ""
+
+msgid "Refund"
+msgstr ""
+
+msgid "Cancellation"
+msgstr ""
+
+msgid "Transaction type"
+msgstr ""
+
+msgid "Amount"
+msgstr ""
+
+msgid "Requested by"
+msgstr ""
+
+msgid "Success"
+msgstr ""
+
+msgid "Error code"
+msgstr ""
+
+msgid "Raw response"
+msgstr ""
+
+msgid "Redsys operation"
+msgstr ""
+
+msgid "Redsys operations"
+msgstr ""
+
+#, python-format
+msgid "%(operation)s of order %(order)s (%(result)s)"
+msgstr ""
+
+msgid "OK"
+msgstr ""
+
+msgid "FAILED"
+msgstr ""
+
+msgid "Redirecting to Redsys…"
+msgstr ""
+
+msgid "Redirecting to the payment gateway, please wait…"
+msgstr ""
+
+msgid "Continue to payment"
+msgstr ""
+
+msgid "Payment result"
+msgstr ""
+
+#, python-format
+msgid "Thank you — your order %(order_number)s has been processed."
+msgstr ""
+
+#, python-format
+msgid ""
+"We're still confirming your payment for order %(order_number)s. This page "
+"does not itself decide whether the payment succeeded — check your order "
+"status in a moment, or contact us if this persists."
+msgstr ""
