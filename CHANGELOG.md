@@ -5,6 +5,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-07
+
+### Added
+
+- Spanish translation (`oscar_redsys/locale/es`, `.po` and compiled `.mo`
+  both committed and shipped in the wheel).
+- All user-visible text is now translatable: the redirect and return page
+  templates (their `lang` attribute now follows the active language), the
+  admin actions and the messages they show, the models' field and model
+  names, and the transaction-type labels.
+- A metadata-only migration (`0003_verbose_names`): field/model
+  `verbose_name`s. No schema change.
+
+### Changed
+
+- The refund/cancel admin messages are built from translatable templates
+  (`Order %(order)s: %(operation)s succeeded.`, ...). English wording is
+  unchanged apart from the "no recorded amount to ..." message, which now
+  reads "to refund"/"to cancel" instead of "to cancellation".
+
 ## [0.2.1] - 2026-10-02
 
 Docs-only — no code change.

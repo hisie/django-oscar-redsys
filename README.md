@@ -331,6 +331,22 @@ comparing. Don't enable it speculatively — see
 `oscar_redsys/signature.py`'s "Lenient comparison" docstring for exactly
 what it does and doesn't defend against.
 
+## Translations
+
+The package ships a Spanish translation (`src/oscar_redsys/locale/es/`). Both
+the `.po` source and the compiled `.mo` are committed, so the wheel includes
+the `.mo` and nothing needs compiling on install. After editing the `.po`,
+recompile before releasing:
+
+```bash
+msgfmt -o src/oscar_redsys/locale/es/LC_MESSAGES/django.mo \
+    src/oscar_redsys/locale/es/LC_MESSAGES/django.po
+```
+
+New strings are extracted with `django-admin makemessages -l es` run from
+`src/oscar_redsys/`. A project can override any single string in its own
+`LOCALE_PATHS` without copying the whole catalogue.
+
 ## Development
 
 ```

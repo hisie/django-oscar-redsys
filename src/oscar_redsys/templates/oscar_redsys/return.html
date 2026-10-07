@@ -1,17 +1,15 @@
-<!DOCTYPE html>
-<html lang="en">
+{% load i18n %}{% get_current_language as LANGUAGE_CODE %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE }}">
 <head>
     <meta charset="utf-8">
-    <title>Payment result</title>
+    <title>{% trans "Payment result" %}</title>
 </head>
 <body>
 {% if notification and notification.signature_valid %}
-    <p>Thank you — your order {{ order_number }} has been processed.</p>
+    <p>{% blocktrans %}Thank you — your order {{ order_number }} has been processed.{% endblocktrans %}</p>
 {% else %}
     <p>
-        We're still confirming your payment for order {{ order_number }}. This
-        page does not itself decide whether the payment succeeded — check
-        your order status in a moment, or contact us if this persists.
+        {% blocktrans %}We're still confirming your payment for order {{ order_number }}. This page does not itself decide whether the payment succeeded — check your order status in a moment, or contact us if this persists.{% endblocktrans %}
     </p>
 {% endif %}
 </body>

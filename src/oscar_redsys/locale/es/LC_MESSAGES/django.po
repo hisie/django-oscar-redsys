@@ -1,0 +1,138 @@
+# Spanish translations for django-oscar-redsys.
+msgid ""
+msgstr ""
+"Project-Id-Version: django-oscar-redsys\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#, python-format
+msgid "Order %(order)s: no recorded amount to %(infinitive)s, skipped."
+msgstr "Pedido %(order)s: no hay un importe registrado que %(infinitive)s; se omite."
+
+#, python-format
+msgid "Order %(order)s: %(operation)s request failed — see logs."
+msgstr "Pedido %(order)s — %(operation)s: la solicitud ha fallado; consulte los registros."
+
+#, python-format
+msgid "Order %(order)s: %(operation)s succeeded."
+msgstr "Pedido %(order)s — %(operation)s: operación correcta."
+
+#, python-format
+msgid "Order %(order)s: %(operation)s failed (%(code)s)."
+msgstr "Pedido %(order)s — %(operation)s: operación fallida (%(code)s)."
+
+msgid "Refund selected payments (full originally-authorized amount)"
+msgstr "Reembolsar los pagos seleccionados (importe autorizado originalmente, completo)"
+
+msgctxt "Redsys operation (noun)"
+msgid "refund"
+msgstr "reembolso"
+
+msgctxt "Redsys operation (infinitive)"
+msgid "refund"
+msgstr "reembolsar"
+
+msgid "Cancel selected payments"
+msgstr "Cancelar los pagos seleccionados"
+
+msgctxt "Redsys operation (noun)"
+msgid "cancellation"
+msgstr "cancelación"
+
+msgctxt "Redsys operation (infinitive)"
+msgid "cancel"
+msgstr "cancelar"
+
+msgid "Redsys payment integration"
+msgstr "Integración de pagos con Redsys"
+
+msgid "Order number"
+msgstr "Número del pedido "
+
+msgid "Redsys response code"
+msgstr "Código de respuesta de Redsys"
+
+msgid "Signature valid"
+msgstr "Firma válida"
+
+msgid "Raw merchant parameters"
+msgstr "Parámetros del comercio (sin procesar)"
+
+msgid "Created at"
+msgstr "Creado el"
+
+msgid "Redsys notification"
+msgstr "Notificación de Redsys"
+
+msgid "Redsys notifications"
+msgstr "Notificaciones de Redsys"
+
+#, python-format
+msgid "Redsys notification for order %(order)s (Ds_Response=%(response)s)"
+msgstr "Notificación de Redsys del pedido %(order)s (Ds_Response=%(response)s)"
+
+msgid "Confirmation"
+msgstr "Confirmación"
+
+msgid "Refund"
+msgstr "Reembolso"
+
+msgid "Cancellation"
+msgstr "Cancelación"
+
+msgid "Transaction type"
+msgstr "Tipo de transacción"
+
+msgid "Amount"
+msgstr "Cantidad"
+
+msgid "Requested by"
+msgstr "Solicitado por"
+
+msgid "Success"
+msgstr "Correcto"
+
+msgid "Error code"
+msgstr "Código de error"
+
+msgid "Raw response"
+msgstr "Respuesta (sin procesar)"
+
+msgid "Redsys operation"
+msgstr "Operación de Redsys"
+
+msgid "Redsys operations"
+msgstr "Operaciones de Redsys"
+
+#, python-format
+msgid "%(operation)s of order %(order)s (%(result)s)"
+msgstr "%(operation)s del pedido %(order)s (%(result)s)"
+
+msgid "OK"
+msgstr "CORRECTA"
+
+msgid "FAILED"
+msgstr "FALLIDA"
+
+msgid "Redirecting to Redsys…"
+msgstr "Redirigiendo a Redsys…"
+
+msgid "Redirecting to the payment gateway, please wait…"
+msgstr "Redirigiendo a la pasarela de pago, espere por favor…"
+
+msgid "Continue to payment"
+msgstr "Continuar con el pago"
+
+msgid "Payment result"
+msgstr "Resultado del pago"
+
+#, python-format
+msgid "Thank you — your order %(order_number)s has been processed."
+msgstr "Gracias: su pedido %(order_number)s se ha procesado."
+
+#, python-format
+msgid "We're still confirming your payment for order %(order_number)s. This page does not itself decide whether the payment succeeded — check your order status in a moment, or contact us if this persists."
+msgstr "Todavía estamos confirmando su pago del pedido %(order_number)s. Esta página no decide por sí misma si el pago se ha completado: consulte el estado de su pedido en unos instantes o póngase en contacto con nosotros si el problema persiste."

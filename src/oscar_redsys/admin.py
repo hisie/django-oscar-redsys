@@ -22,6 +22,8 @@ from typing import Any, cast
 from django.contrib import admin, messages
 from django.db.models import QuerySet
 from django.http import HttpRequest
+from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy, pgettext_lazy
 
 from . import rest
 from .facade import minor_units_to_amount
@@ -74,11 +76,16 @@ class RedsysNotificationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
         transaction_type: str,
         build_request: Callable[[str, Decimal], rest.RestOperationRequest],
         verb: str,
+        operation: Any,
+        infinitive: Any,
     ) -> None:
+        # `verb` is the English word used in log lines only; `operation` (a
+        # noun) and `infinitive` are the translatable forms used in messages
+        # shown to staff.
         if not self._has_refund_permission(request):
             self.message_user(
                 request,
-                "You don't have permission to refund or cancel Redsys payments.",
+                _("You don't have permission to refund or cancel Redsys payments."),
                 level=messages.ERROR,
             )
             return
@@ -88,7 +95,8 @@ class RedsysNotificationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
             if amount is None:
                 self.message_user(
                     request,
-                    f"Order {notification.order_number}: no recorded amount to {verb}, skipped.",
+                    _("Order %(order)s: no recorded amount to %(infinitive)s, skipped.")
+                    % {"order": notification.order_number, "infinitive": infinitive},
                     level=messages.WARNING,
                 )
                 continue
@@ -111,7 +119,8 @@ class RedsysNotificationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
                 )
                 self.message_user(
                     request,
-                    f"Order {notification.order_number}: {verb} request failed — see logs.",
+                    _("Order %(order)s: %(operation)s request failed — see logs.")
+                    % {"order": notification.order_number, "operation": operation},
                     level=messages.ERROR,
                 )
                 continue
@@ -130,18 +139,25 @@ class RedsysNotificationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
             if success:
                 self.message_user(
                     request,
-                    f"Order {notification.order_number}: {verb} succeeded.",
+                    _("Order %(order)s: %(operation)s succeeded.")
+                    % {"order": notification.order_number, "operation": operation},
                     level=messages.SUCCESS,
                 )
             else:
                 self.message_user(
                     request,
-                    f"Order {notification.order_number}: {verb} failed "
-                    f"({result.error_code or result.ds_response}).",
+                    _("Order %(order)s: %(operation)s failed (%(code)s).")
+                    % {
+                        "order": notification.order_number,
+                        "operation": operation,
+                        "code": result.error_code or result.ds_response,
+                    },
                     level=messages.ERROR,
                 )
 
-    @admin.action(description="Refund selected payments (full originally-authorized amount)")
+    @admin.action(
+        description=gettext_lazy("Refund selected payments (full originally-authorized amount)")
+    )
     def refund_selected(self, request: HttpRequest, queryset: QuerySet[RedsysNotification]) -> None:
         self._perform_operation(
             request,
@@ -149,9 +165,11 @@ class RedsysNotificationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
             transaction_type=RedsysOperation.TransactionType.REFUND,
             build_request=rest.build_refund_request,
             verb="refund",
+            operation=pgettext_lazy("Redsys operation (noun)", "refund"),
+            infinitive=pgettext_lazy("Redsys operation (infinitive)", "refund"),
         )
 
-    @admin.action(description="Cancel selected payments")
+    @admin.action(description=gettext_lazy("Cancel selected payments"))
     def cancel_selected(self, request: HttpRequest, queryset: QuerySet[RedsysNotification]) -> None:
         self._perform_operation(
             request,
@@ -159,6 +177,8 @@ class RedsysNotificationAdmin(admin.ModelAdmin):  # type: ignore[type-arg]
             transaction_type=RedsysOperation.TransactionType.CANCELLATION,
             build_request=rest.build_cancellation_request,
             verb="cancellation",
+            operation=pgettext_lazy("Redsys operation (noun)", "cancellation"),
+            infinitive=pgettext_lazy("Redsys operation (infinitive)", "cancel"),
         )
 
 
