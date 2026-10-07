@@ -5,10 +5,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-07
+
+### Fixed
+
+- The Spanish (and English) catalogue was missing one string, "You don't
+  have permission to refund or cancel Redsys payments.", so that admin
+  message stayed in English in 0.3.0. Every string in the code is now in
+  both catalogues.
+
 ### Added
 
-- `oscar_redsys/locale/en`: the English source catalogue (empty `msgstr`s, `.po`
-  and `.mo`), the same reference template Django and Oscar ship. No
+- `oscar_redsys/locale/en`: the English source catalogue (empty `msgstr`s,
+  `.po` and `.mo`), the same reference template Django and Oscar ship. No
   behaviour change: the `msgid` is the English text.
 
 ## [0.3.0] - 2026-10-07
@@ -82,7 +91,9 @@ fields/settings have safe defaults.
   channel, audited via `RedsysOperation`), `DS_MERCHANT_CONSUMERLANGUAGE`
   support.
 
-[Unreleased]: https://github.com/hisie/django-oscar-redsys/compare/0.2.1...HEAD
+[Unreleased]: https://github.com/hisie/django-oscar-redsys/compare/0.3.1...HEAD
+[0.3.1]: https://github.com/hisie/django-oscar-redsys/compare/0.3.0...0.3.1
+[0.3.0]: https://github.com/hisie/django-oscar-redsys/compare/0.2.1...0.3.0
 [0.2.1]: https://github.com/hisie/django-oscar-redsys/compare/0.2.0...0.2.1
 [0.2.0]: https://github.com/hisie/django-oscar-redsys/compare/0.1.0...0.2.0
 [0.1.0]: https://github.com/hisie/django-oscar-redsys/releases/tag/0.1.0

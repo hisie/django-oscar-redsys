@@ -438,7 +438,7 @@ wheels = [
 
 [[package]]
 name = "django-oscar-redsys"
-version = "0.3.0"
+version = "0.3.1"
 source = { editable = "." }
 dependencies = [
     { name = "django" },

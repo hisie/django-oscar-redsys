@@ -8,6 +8,9 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+msgid "You don't have permission to refund or cancel Redsys payments."
+msgstr "No tiene permiso para reembolsar ni cancelar pagos de Redsys."
+
 #, python-format
 msgid "Order %(order)s: no recorded amount to %(infinitive)s, skipped."
 msgstr "Pedido %(order)s: no hay un importe registrado que %(infinitive)s; se omite."
